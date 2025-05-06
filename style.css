@@ -1,5 +1,12 @@
-html,
-body {
-	margin: 0;
-	padding: 0;
-}
+/* 
+ * Remove default margin and padding from HTML and body elements
+ * This ensures the canvas fills the entire window without scrollbars
+ */
+ html,
+ body {
+	 margin: 0;
+	 padding: 0;
+	 overflow: hidden; /* Prevent scrollbars */
+ }
+
+ 
