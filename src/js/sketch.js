@@ -7,7 +7,7 @@ let bg;               // Graphics buffer for drawing
 // Noise parameters
 const ns = 60;        // Noise scale for spatial variation
 const nss = 150;      // Noise scale for temporal variation
-const ni = 8;         // Noise intensity multiplier
+const ni = 6;         // Noise intensity multiplier
 
 /**
  * Setup function runs once when the program starts
@@ -135,3 +135,4 @@ function mousePressed() {
         fullscreen(!fs);
     }
 }
+
