@@ -1,8 +1,9 @@
 // Declare global variables
 let cam;              // Webcam capture
 let canvasElement;    // Canvas element
-let w, h;             // Width and height of the camera feed
+let w = 0, h = 0;    // Width and height of the camera feed
 let bg;               // Graphics buffer for drawing
+let prevBgW = 0, prevBgH = 0; // Track last buffer dimensions to avoid recreation
 
 // Noise parameters
 const ns = 60;        // Noise scale for spatial variation
@@ -21,12 +22,15 @@ function setup() {
     // Create a canvas that fills the window
     canvasElement = createCanvas(windowWidth, windowHeight);
 
+    // Disable high-DPI scaling — halves the pixel work on retina/high-res displays
+    pixelDensity(1);
+
+    // Cap frame rate to keep rendering stable and reduce CPU/GPU load on Windows
+    frameRate(30);
+
     // Set initial background to black
     background(0);
 }
-
-// Variables for pixel color values
-let i, r, g, b;
 
 /**
  * Draw function runs continuously in a loop
@@ -41,6 +45,9 @@ function draw() {
         w = cam.width;
         h = cam.height;
     }
+
+    // Skip rendering until the camera has a valid size
+    if (w === 0) return;
 
     // Set parameters based on camera orientation
     let sz, space, walk, spd;
@@ -58,9 +65,19 @@ function draw() {
         spd = 5;
     }
 
-    // Create graphics buffer for off-screen rendering
-    bg = createGraphics(w - (walk * 2), h - (walk * 2));
-    bg.noStroke();
+    // Recreate the graphics buffer only when camera dimensions change, not every frame
+    let bgW = w - (walk * 2);
+    let bgH = h - (walk * 2);
+    if (!bg || bgW !== prevBgW || bgH !== prevBgH) {
+        if (bg) bg.remove();
+        bg = createGraphics(bgW, bgH);
+        bg.noStroke();
+        prevBgW = bgW;
+        prevBgH = bgH;
+    }
+
+    // Clear the buffer for this frame (instead of recreating it)
+    bg.clear();
 
     // Calculate dimensions for maintaining aspect ratio
     let nW, nH, oX, oY;
@@ -78,6 +95,11 @@ function draw() {
         oY = 0;
     }
 
+    // Pre-calculate per-frame values that are constant across all pixels
+    let timeNoise = noise(frameCount / nss);
+    let orbitX = sin(frameCount / spd) * walk;
+    let orbitY = cos(frameCount / spd) * walk;
+
     // Load pixel data from webcam
     cam.loadPixels();
 
@@ -85,22 +107,18 @@ function draw() {
     for (let x = 0; x < w; x += sz + space) {
         for (let y = 0; y < h; y += sz + space) {
             // Calculate pixel index and get RGB values
-            i = ((y * w) + x) * 4;
-            r = cam.pixels[i];
-            g = cam.pixels[i + 1];
-            b = cam.pixels[i + 2];
-            
+            let idx = ((y * w) + x) * 4;
+            let r = cam.pixels[idx];
+            let g = cam.pixels[idx + 1];
+            let b = cam.pixels[idx + 2];
+
             // Set fill color based on pixel color
             bg.fill(r, g, b);
-            
-            // Calculate orbital movement
-            let orbitX = sin(frameCount / spd) * walk;
-            let orbitY = cos(frameCount / spd) * walk;
-            
-            // Add noise-based displacement
-            let nx = noise(x / ns, y / ns) * noise(frameCount / nss) * ni;
-            let ny = noise(y / ns, x / ns) * noise(frameCount / nss) * ni;
-            
+
+            // Add noise-based displacement (timeNoise is shared for the whole frame)
+            let nx = noise(x / ns, y / ns) * timeNoise * ni;
+            let ny = noise(y / ns, x / ns) * timeNoise * ni;
+
             // Draw the particle (ellipse)
             bg.ellipse((x - walk) + (orbitX * nx), (y - walk) + (orbitY * ny), sz, sz);
         }
@@ -135,4 +153,3 @@ function mousePressed() {
         fullscreen(!fs);
     }
 }
-
